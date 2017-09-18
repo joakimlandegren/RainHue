@@ -24,10 +24,13 @@ def setLampYellow():
         light_names['Barnhall'].brightness = 254
         light_names['Barnhall'].hue = 10000
 
+#Defines possible weather strings from API to trigger on
+weatherTypes = ['Rain','Light Rain','Drizzle','Heavy Rain']
+
 #Change lamp color based on weather forecast
 light_names['Barnhall'].on = True
 for i in range(0,12):
-    if data['hourly']['data'][i]['summary'] == 'Rain':
+    if data['hourly']['data'][i]['summary'] in weatherTypes:
         setLampBlue()
         break
     else:
