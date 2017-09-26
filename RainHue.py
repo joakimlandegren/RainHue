@@ -2,9 +2,11 @@
 from phue import Bridge
 import requests
 import json
+import localconfig as cfg
 
 #Connect to Philips Hue Bridge
-b = Bridge('192.168.1.9')
+bridge = cfg.bridge
+b = Bridge(bridge)
 b.connect()
 
 #Set array with lamp names
@@ -16,19 +18,20 @@ response = requests.get(url)
 data = response.json()
 
 #Set Lamp colors
+lamp = cfg.selectedLamp
 def setLampBlue():
-        light_names['Barnhall'].brightness = 130
-        light_names['Barnhall'].hue = 46920
+        light_names[lamp].brightness = 130
+        light_names[lamp].hue = 46920
 
 def setLampYellow():
-        light_names['Barnhall'].brightness = 254
-        light_names['Barnhall'].hue = 10000
+        light_names[lamp].brightness = 254
+        light_names[lamp].hue = 10000
 
 #Defines possible weather strings from API to trigger on
 weatherTypes = ['Rain','Light Rain','Drizzle','Heavy Rain']
 
 #Change lamp color based on weather forecast
-light_names['Barnhall'].on = True
+light_names[lamp].on = True
 for i in range(0,12):
     if data['hourly']['data'][i]['summary'] in weatherTypes:
         setLampBlue()
