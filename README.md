@@ -4,9 +4,5 @@ This is a simple Python application to turn my Philips Hue lights on when there 
 ## Installation
 
 ```
-make -f RainHue
-```
-or
-```
-pip install -r requirements.txt
+sudo make -f RainHue
 ```
