@@ -1,2 +1,2 @@
-nose
-sphinx
+phue==0.9
+requests==2.18.4
