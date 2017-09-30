@@ -14,11 +14,7 @@ b.connect()
 light_names = b.get_light_objects('name')
 
 #Get forecast data
-apikey = cfg.API_KEY
-latitude = cfg.coordinates[0]
-longitude = cfg.coordinates[1]
-
-fio = ForecastIO.ForecastIO(apikey, units=ForecastIO.ForecastIO.UNITS_SI, lang=ForecastIO.ForecastIO.LANG_ENGLISH, latitude = latitude, longitude = longitude)
+fio = ForecastIO.ForecastIO(cfg.API_KEY, units=ForecastIO.ForecastIO.UNITS_SI, lang=ForecastIO.ForecastIO.LANG_ENGLISH, latitude = cfg.coordinates[0], longitude = cfg.coordinates[1])
 
 #Defines possible weather strings from API to trigger on
 weatherTypes = ['Rain','Light Rain','Drizzle','Heavy Rain']
