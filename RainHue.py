@@ -3,6 +3,7 @@ from phue import Bridge
 import requests
 import json
 import localconfig as cfg
+from forecastiopy import *
 
 #Connect to Philips Hue Bridge
 bridge = cfg.bridge
@@ -12,30 +13,35 @@ b.connect()
 #Set array with lamp names
 light_names = b.get_light_objects('name')
 
-#Fetch weather data for the next 12 hours
-url = 'https://api.darksky.net/forecast/32d05244bc0a675ae12c7afc94f7ba2c/59.35512,17.908545'
-response = requests.get(url)
-data = response.json()
+#Get forecast data
+apikey = cfg.API_KEY
+latitude = cfg.coordinates[0]
+longitude = cfg.coordinates[1]
 
-#Set Lamp colors
-lamp = cfg.selectedLamp
-def setLampBlue():
-        light_names[lamp].brightness = 130
-        light_names[lamp].hue = 46920
-
-def setLampYellow():
-        light_names[lamp].brightness = 254
-        light_names[lamp].hue = 10000
+fio = ForecastIO.ForecastIO(apikey, units=ForecastIO.ForecastIO.UNITS_SI, lang=ForecastIO.ForecastIO.LANG_ENGLISH, latitude = latitude, longitude = longitude)
+print fio.get_url()
 
 #Defines possible weather strings from API to trigger on
 weatherTypes = ['Rain','Light Rain','Drizzle','Heavy Rain']
 
-#Change lamp color based on weather forecast
+#Turn lamp on and Set Lamp colors
+lamp = cfg.selectedLamp
 light_names[lamp].on = True
-for i in range(0,12):
-    if data['hourly']['data'][i]['summary'] in weatherTypes:
-        setLampBlue()
-        break
-    else:
-        setLampYellow()
-        print data['hourly']['data'][i]['summary']
+
+def setLampColor(lampColor):
+        light_names[lamp].brightness = lampColor[0]
+        light_names[lamp].hue = lampColor[1]
+        light_names[lamp].saturation = lampColor[2]
+
+#Get weather forecast for next 12 hours and set lamp color to blue if it will rain
+if fio.has_hourly() is True:
+	hourly = FIOHourly.FIOHourly(fio)
+	for hour in range(0, 12):
+            if hourly.get_hour(hour)["summary"] in weatherTypes:
+                setLampColor(cfg.rainColor)
+                break
+            else:
+                setLampColor(cfg.defaultColor)
+                print hourly.get_hour(hour)["summary"]
+else:
+	print 'No Hourly data'
