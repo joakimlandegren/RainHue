@@ -6,8 +6,7 @@ import localconfig as cfg
 from forecastiopy import *
 
 #Connect to Philips Hue Bridge
-bridge = cfg.bridge
-b = Bridge(bridge)
+b = Bridge(cfg.bridge)
 b.connect()
 
 #Set array with lamp names
