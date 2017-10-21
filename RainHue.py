@@ -16,7 +16,8 @@ light_names = b.get_light_objects('name')
 fio = ForecastIO.ForecastIO(cfg.API_KEY, units=ForecastIO.ForecastIO.UNITS_SI, lang=ForecastIO.ForecastIO.LANG_ENGLISH, latitude = cfg.coordinates[0], longitude = cfg.coordinates[1])
 
 #Defines possible weather strings from API to trigger on
-weatherTypes = ['Rain','Light Rain','Drizzle','Heavy Rain']
+rainTypes = ['Rain','Light Rain','Drizzle','Heavy Rain']
+snowTypes = ['Snow','Hail','Heavy Snow','Light Snow']
 
 #Turn lamp on and Set Lamp colors
 lamp = cfg.selectedLamp
@@ -31,8 +32,11 @@ def setLampColor(lampColor):
 if fio.has_hourly() is True:
 	hourly = FIOHourly.FIOHourly(fio)
 	for hour in range(0, 12):
-            if hourly.get_hour(hour)["summary"] in weatherTypes:
+            if hourly.get_hour(hour)["summary"] in rainTypes:
                 setLampColor(cfg.rainColor)
+                break
+            elif hourly.get_hour(hour)["summary"] in snowTypes:
+                setLampColor(cfg.snowColor)
                 break
             else:
                 setLampColor(cfg.defaultColor)
