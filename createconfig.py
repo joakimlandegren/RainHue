@@ -19,4 +19,4 @@ with open("localconfig.py", "w") as f:
     f.write("#GPS position for forecast\n")
     f.write("coordinates = ['" + latitude + "', '" + longitude + "']\n")
     f.write("\n")
-    f.write("#Set lamp colors [brightness, hue, saturation]\nrainColor = [120, 45000, 254]\ndefaultColor = [254, 10000, 0]")
+    f.write("#Set lamp colors [brightness, hue, saturation]\nrainColor = [120, 45000, 254]\nsnowColor = [120, 25000, 254]\ndefaultColor = [254, 10000, 0]")
