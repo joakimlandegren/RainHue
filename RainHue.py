@@ -14,8 +14,8 @@ light_names = b.get_light_objects('name')
 fio = ForecastIO.ForecastIO(cfg.API_KEY, units=ForecastIO.ForecastIO.UNITS_SI, lang=ForecastIO.ForecastIO.LANG_ENGLISH, latitude = cfg.coordinates[0], longitude = cfg.coordinates[1])
 
 # Defines possible weather strings from API to trigger on
-rain_weather_types = ['Rain','Light Rain','Drizzle','Heavy Rain']
-snow_weather_types = ['Snow','Hail','Heavy Snow','Light Snow']
+rain_weather_types = ['Rain','Light Rain','Drizzle','Heavy Rain','Possible Light Rain']
+snow_weather_types = ['Snow','Hail','Heavy Snow','Light Snow','Possible Light Snow and Breezy','Possible Light Snow','Light Snow and Breezy']
 
 # Turn lamp on and Set Lamp colors
 lamp = cfg.selectedLamp
