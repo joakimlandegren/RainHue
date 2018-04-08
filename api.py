@@ -10,6 +10,11 @@ app = Flask(__name__)
 # Select lamp
 lamp = cfg.selectedLamp
 
+# Defines possible weather strings from API to trigger on
+rain_weather_types = ['Rain', 'Light Rain', 'Drizzle', 'Heavy Rain', 'Possible Light Rain']
+snow_weather_types = ['Snow', 'Hail', 'Heavy Snow', 'Light Snow', 'Possible Light Snow and Breezy',
+                      'Possible Light Snow', 'Light Snow and Breezy']
+
 
 @app.route("/weather", methods=["GET"])
 def return_weather_conditions():
@@ -39,6 +44,12 @@ def set_lamp_color(lampcolor):
 
 def get_weather_conditions_from_darksky():
     weather = []
+
+    # Get forecast data
+    fio = ForecastIO.ForecastIO(cfg.API_KEY, units=ForecastIO.ForecastIO.UNITS_SI,
+                                lang=ForecastIO.ForecastIO.LANG_ENGLISH, latitude=cfg.coordinates[0],
+                                longitude=cfg.coordinates[1])
+
     if fio.has_hourly() is True:
         hourly = FIOHourly.FIOHourly(fio)
         for hour in range(0, 12):
@@ -63,15 +74,5 @@ if __name__ == '__main__':
 
     # Set array with lamp names
     light_names = b.get_light_objects('name')
-
-    # Get forecast data
-    fio = ForecastIO.ForecastIO(cfg.API_KEY, units=ForecastIO.ForecastIO.UNITS_SI,
-                                lang=ForecastIO.ForecastIO.LANG_ENGLISH, latitude=cfg.coordinates[0],
-                                longitude=cfg.coordinates[1])
-
-    # Defines possible weather strings from API to trigger on
-    rain_weather_types = ['Rain', 'Light Rain', 'Drizzle', 'Heavy Rain', 'Possible Light Rain']
-    snow_weather_types = ['Snow', 'Hail', 'Heavy Snow', 'Light Snow', 'Possible Light Snow and Breezy',
-                          'Possible Light Snow', 'Light Snow and Breezy']
 
     app.run(port=5000, debug=True)
