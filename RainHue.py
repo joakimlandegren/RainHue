@@ -1,11 +1,12 @@
 #!/usr/bin/python
+import logging
+
 from phue import Bridge
 import localconfig as cfg
 from forecastiopy import *
 
 def connect_to_hue_bridge_and_fetch_lamps():
     b = Bridge(cfg.bridge)
-    b.connect()
     global light_names
     light_names = b.get_light_objects('name')
 
@@ -17,16 +18,18 @@ def change_lamp_color(lampColor, lamp):
     light_names[lamp].brightness = lampColor[0]
     light_names[lamp].hue = lampColor[1]
     light_names[lamp].saturation = lampColor[2]
+    logging.info('Color of %s set to %s, %s, %s', lamp, lampColor[0], lampColor[1], lampColor[2])
 
 def get_weather():
     fio = ForecastIO.ForecastIO(cfg.API_KEY, units=ForecastIO.ForecastIO.UNITS_SI,
                                 lang=ForecastIO.ForecastIO.LANG_ENGLISH, latitude=cfg.coordinates[0],
                                 longitude=cfg.coordinates[1])
-    if fio.has_hourly() is True:
+    try:
+        fio.has_hourly()
         hourly_weather = FIOHourly.FIOHourly(fio)
         return hourly_weather
-    else:
-        return 'No Hourly data'
+    except Exception:
+        logging.warning('No Hourly data')
 
 
 #Get weather forecast for next 12 hours and set lamp color to blue if it will rain
@@ -43,11 +46,13 @@ def set_weather_color(hourly_weather):
                 color = cfg.snowColor
                 break
             else:
+                logging.info(hourly_weather.get_hour(hour)["summary"])
                 print(hourly_weather.get_hour(hour)["summary"])
             color = cfg.defaultColor
     return color
 
 def main():
+    logging.basicConfig(filename='logs/RainHue.log', filemode='w', level=logging.INFO)
     connect_to_hue_bridge_and_fetch_lamps()
     lamp = cfg.selectedLamp
     init_lamps(lamp)
