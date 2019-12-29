@@ -5,12 +5,10 @@ import localconfig as cfg
 import socket
 import authorization
 
-DEVICE_ID = socket.gethostname()
-
 valid_params_dict = {
     'client_id': cfg.CLIENT_ID,
     'app_id': cfg.APP_ID,
-    'device_id': DEVICE_ID,
+    'device_id': cfg.DEVICE_ID,
     'state': cfg.STATE,
     'response_type': cfg.RESPONSE_TYPE
 }
@@ -18,7 +16,7 @@ valid_params_dict = {
 invalid_client_id_params_dict = {
     'client_id': 'fail',
     'app_id': cfg.APP_ID,
-    'device_id': DEVICE_ID,
+    'device_id': cfg.DEVICE_ID,
     'state': cfg.STATE,
     'response_type': cfg.RESPONSE_TYPE
 }
