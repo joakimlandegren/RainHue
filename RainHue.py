@@ -5,10 +5,15 @@ import os
 import platform
 import requests
 
-from phue import Bridge, USER_HOME, logger, Light, is_string
+from phue import Bridge, USER_HOME, logger, Light, is_string, PY3K
 import localconfig as cfg
 from forecastiopy import *
 
+auth_token = 'gunDxsjsBiOxDAGeJKIWm7UtJOeE'
+header = {
+    'Authorization': 'Bearer ' + auth_token,
+    'Content-type': 'application/x-www-form-urlencoded'
+}
 
 class Bridge(object):
 
@@ -54,24 +59,12 @@ class Bridge(object):
         """Returns a collection containing the lights, either by name or id (use 'id' or 'name' as the mode)
         The returned collection can be either a list (default), or a dict.
         Set mode='id' for a dict by light ID, or mode='name' for a dict by light name.   """
-        auth_token = 'gunDxsjsBiOxDAGeJKIWm7UtJOeE'
-        header = {
-            'Authorization': 'Bearer ' + auth_token,
-            'Content-type': 'application/x-www-form-urlencoded'
-        }
 
         if self.lights_by_id == {}:
-            lights = requests.get(self.uri + 'bridge/' + self.username + '/lights/', headers=header)
+            lights = self.request(self.uri + 'bridge/' + self.username + '/lights/', header)
             for light in lights:
-                try:
-                    self.lights_by_id[int(light)] = Light(self, int(light))
-                except ValueError:
-                    pass
-                try:
-                    self.lights_by_name[lights[light][
-                        'name']] = self.lights_by_id[int(light)]
-                except ValueError:
-                    pass
+                self.lights_by_id[int(light)] = Light(self, int(light))
+                self.lights_by_name[lights[light]['name']] = self.lights_by_id[int(light)]
         if mode == 'id':
             return self.lights_by_id
         if mode == 'name':
@@ -79,6 +72,89 @@ class Bridge(object):
         if mode == 'list':
             return self.lights_by_id.values()
 
+    def request(self, address=None, header=None): #TODO Add support for sending parameters in request
+        """ Utility function for HTTP GET/PUT requests for the API"""
+        response = requests.get(address, headers=header)
+        if PY3K:
+            return json.loads(response.text)
+        else:
+            logger.debug(response)
+            return json.loads(response)
+
+    @property
+    def lights(self):
+        """ Access lights as a list """
+        return self.get_light_objects()
+
+    def get_api(self):
+        """ Returns the full api dictionary """
+        return self.request('GET', '/api/' + self.username)
+
+    def get_light(self, light_id=None, parameter=None):
+        """ Gets state by light_id and parameter"""
+
+        if is_string(light_id):
+            light_id = self.get_light_id_by_name(light_id)
+        if light_id is None:
+            return self.request('GET', '/api/' + self.username + '/lights/')
+        state = self.request(
+            'GET', '/api/' + self.username + '/lights/' + str(light_id))
+        if parameter is None:
+            return state
+        if parameter == 'name':
+            return state[parameter]
+        else:
+            try:
+                return state['state'][parameter]
+            except KeyError as e:
+                raise KeyError(
+                    'Not a valid key, parameter %s is not associated with light %s)'
+                    % (parameter, light_id))
+
+    def set_light(self, light_id, parameter, value=None, transitiontime=None):
+        """ Adjust properties of one or more lights.
+
+        light_id can be a single lamp or an array of lamps
+        parameters: 'on' : True|False , 'bri' : 0-254, 'sat' : 0-254, 'ct': 154-500
+
+        transitiontime : in **deciseconds**, time for this transition to take place
+                         Note that transitiontime only applies to *this* light
+                         command, it is not saved as a setting for use in the future!
+                         Use the Light class' transitiontime attribute if you want
+                         persistent time settings.
+
+        """
+        if isinstance(parameter, dict):
+            data = parameter
+        else:
+            data = {parameter: value}
+
+        if transitiontime is not None:
+            data['transitiontime'] = int(round(
+                transitiontime))  # must be int for request format
+
+        light_id_array = light_id
+        if isinstance(light_id, int) or is_string(light_id):
+            light_id_array = [light_id]
+        result = []
+        for light in light_id_array:
+            logger.debug(str(data))
+            if parameter == 'name':
+                result.append(self.request(self.uri + 'bridge/' + self.username + '/lights/' + str(
+                    converted_light) + '/state', header))
+            else:
+                if is_string(light):
+                    converted_light = self.get_light_id_by_name(light)
+                else:
+                    converted_light = light
+                result.append(self.request(self.uri + 'bridge/' + self.username + '/lights/' + str(
+                    converted_light) + '/state', header))
+            if 'error' in list(result[-1][0].keys()):
+                logger.warn("ERROR: {0} for light {1}".format(
+                    result[-1][0]['error']['description'], light))
+
+        logger.debug(result)
+        return result
 
 
 def connect_to_hue_bridge_and_fetch_lamps():
