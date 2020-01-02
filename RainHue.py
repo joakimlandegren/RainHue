@@ -3,17 +3,24 @@ import json
 import logging
 import os
 import platform
+import socket
+
 import requests
 
-from phue import Bridge, USER_HOME, logger, Light, is_string, PY3K
+from phue import Bridge, USER_HOME, logger, Light, is_string, PY3K, PhueRequestTimeout
 import localconfig as cfg
 from forecastiopy import *
 
-auth_token = 'gunDxsjsBiOxDAGeJKIWm7UtJOeE'
-header = {
+auth_token = 'hauhAMjlqHmUb8t8LgILiNu8zaG8'
+header_get = {
     'Authorization': 'Bearer ' + auth_token,
     'Content-type': 'application/x-www-form-urlencoded'
 }
+header_put = {
+    'Authorization': 'Bearer ' + auth_token,
+    'Content-type': 'application/json'
+}
+
 
 class Bridge(object):
 
@@ -61,7 +68,7 @@ class Bridge(object):
         Set mode='id' for a dict by light ID, or mode='name' for a dict by light name.   """
 
         if self.lights_by_id == {}:
-            lights = self.request(self.uri + 'bridge/' + self.username + '/lights/', header)
+            lights = self.request('GET', self.uri + 'bridge/' + self.username + '/lights/', header_get)
             for light in lights:
                 self.lights_by_id[int(light)] = Light(self, int(light))
                 self.lights_by_name[lights[light]['name']] = self.lights_by_id[int(light)]
@@ -72,10 +79,30 @@ class Bridge(object):
         if mode == 'list':
             return self.lights_by_id.values()
 
-    def request(self, address=None, header=None): #TODO Add support for sending parameters in request
+    def request(self, mode=None, address=None, header=None, data=None): #TODO Add support for sending parameters in request
         """ Utility function for HTTP GET/PUT requests for the API"""
-        response = requests.get(address, headers=header)
+        try:
+            if mode == 'GET':
+                response = requests.get(address, headers=header, params=data)
+            elif mode == 'DELETE':
+                response = requests.delete(address, headers=header, params=data)
+            elif mode == 'PUT':
+                response = requests.put(address, headers=header, params=data)
+            elif mode == 'POST':
+                response = requests.post(address, headers=header, params=data)
+            else:
+                raise ConnectionError('No mode provided for the request method')
+            logger.debug("{0} {1} {2}".format(mode, address, str(data)))
+
+        except socket.timeout:
+            error = "{} Request to {}{} timed out.".format(mode, self.uri, address)
+
+            logger.exception(error)
+            raise PhueRequestTimeout(None, error)
+
         if PY3K:
+            logger.info(type(json.dumps(response.text)))
+            logger.debug(json.loads(response.text))
             return json.loads(response.text)
         else:
             logger.debug(response)
@@ -138,20 +165,20 @@ class Bridge(object):
             light_id_array = [light_id]
         result = []
         for light in light_id_array:
-            logger.debug(str(data))
+            logger.info(str(data))
             if parameter == 'name':
-                result.append(self.request(self.uri + 'bridge/' + self.username + '/lights/' + str(
-                    converted_light) + '/state', header))
+                result.append(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(converted_light) + '/state', header_put, json.dumps(data)))
+                logging.debug(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(converted_light) + '/state', header_put, json.dumps(data)))
             else:
                 if is_string(light):
                     converted_light = self.get_light_id_by_name(light)
                 else:
                     converted_light = light
-                result.append(self.request(self.uri + 'bridge/' + self.username + '/lights/' + str(
-                    converted_light) + '/state', header))
-            if 'error' in list(result[-1][0].keys()):
-                logger.warn("ERROR: {0} for light {1}".format(
-                    result[-1][0]['error']['description'], light))
+                result.append(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(converted_light) + '/state', header_put, json.dumps(data)))
+                logging.debug(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(converted_light) + '/state', header_put, json.dumps(data)))
+            # if 'error' in list(result[-1][0].keys()):
+            #     logger.warn("ERROR: {0} for light {1}".format(
+            #         result[-1][0]['error']['description'], light))
 
         logger.debug(result)
         return result
@@ -204,6 +231,8 @@ def set_weather_color(hourly_weather):
     return color
 
 def main():
+    logging.basicConfig(filename="logs/info.log", filemode="a", level=logging.DEBUG)
+    logging.debug('Starting application ********************')
     connect_to_hue_bridge_and_fetch_lamps()
     lamp = cfg.selectedLamp
     init_lamps(lamp)
