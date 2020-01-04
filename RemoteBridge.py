@@ -94,8 +94,6 @@ class RemoteBridge(Bridge):
             logging.exception(error)
             raise PhueRequestTimeout(None, error)
 
-        logging.info(type(json.dumps(response.text)))
-        logging.debug(json.loads(response.text))
         return json.loads(response.text)
 
     def set_light(self, light_id, parameter, value=None, transitiontime=None):
@@ -129,8 +127,6 @@ class RemoteBridge(Bridge):
             if parameter == 'name':
                 result.append(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(
                     converted_light) + '/state', json.dumps(data)))
-                logging.debug(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(
-                    converted_light) + '/state', json.dumps(data)))
             else:
                 if is_string(light):
                     converted_light = self.get_light_id_by_name(light)
@@ -138,11 +134,6 @@ class RemoteBridge(Bridge):
                     converted_light = light
                 result.append(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(
                     converted_light) + '/state', json.dumps(data)))
-                logging.debug(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(
-                    converted_light) + '/state', json.dumps(data)))
-            # if 'error' in list(result[-1][0].keys()):
-            #     logger.warn("ERROR: {0} for light {1}".format(
-            #         result[-1][0]['error']['description'], light))
 
         logging.debug(result)
         return result

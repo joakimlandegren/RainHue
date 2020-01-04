@@ -10,15 +10,18 @@ def connect_to_hue_bridge_and_fetch_lamps():
     global light_names
     light_names = b.get_light_objects('name')
 
+
 def init_lamps(lamp):
-    #Turn lamp on and Set Lamp colors
+    # Turn lamp on and Set Lamp colors
     light_names[lamp].on = True
 
-def change_lamp_color(lampColor, lamp):
-    light_names[lamp].brightness = lampColor[0]
-    light_names[lamp].hue = lampColor[1]
-    light_names[lamp].saturation = lampColor[2]
-    logging.info('Color of %s set to %s, %s, %s', lamp, lampColor[0], lampColor[1], lampColor[2])
+
+def change_lamp_color(lamp_color, lamp):
+    light_names[lamp].brightness = lamp_color[0]
+    light_names[lamp].hue = lamp_color[1]
+    light_names[lamp].saturation = lamp_color[2]
+    logging.info('Color of %s set to %s, %s, %s', lamp, lamp_color[0], lamp_color[1], lamp_color[2])
+
 
 def get_weather():
     fio = ForecastIO.ForecastIO(cfg.API_KEY, units=ForecastIO.ForecastIO.UNITS_SI,
@@ -32,24 +35,27 @@ def get_weather():
         logging.warning('No Hourly data')
 
 
-#Get weather forecast for next 12 hours and set lamp color to blue if it will rain
+# Get weather forecast for next 12 hours and set lamp color to blue if it will rain
 def set_weather_color(hourly_weather):
     # Defines possible weather strings from API to trigger on
-    rainTypes = ['Rain', 'Light Rain', 'Drizzle', 'Heavy Rain']
-    snowTypes = ['Snow', 'Hail', 'Heavy Snow', 'Light Snow']
+    rain_types = list(['Rain', 'Light Rain', 'Drizzle', 'Heavy Rain'])
+    snow_types = ['Snow', 'Hail', 'Heavy Snow', 'Light Snow']
+
+    logging.info('Weather forecast for the following hours')
 
     for hour in range(0, 12):
-            if hourly_weather.get_hour(hour)["summary"] in rainTypes:
-                color = cfg.rainColor
-                break
-            elif hourly_weather.get_hour(hour)["summary"] in snowTypes:
-                color = cfg.snowColor
-                break
-            else:
-                logging.info(hourly_weather.get_hour(hour)["summary"])
-                print(hourly_weather.get_hour(hour)["summary"])
-            color = cfg.defaultColor
+        if hourly_weather.get_hour(hour)["summary"] in rain_types:
+            color = cfg.rainColor
+            break
+        elif hourly_weather.get_hour(hour)["summary"] in snow_types:
+            color = cfg.snowColor
+            break
+        else:
+            logging.info(hourly_weather.get_hour(hour)["summary"])
+            print(hourly_weather.get_hour(hour)["summary"])
+        color = cfg.defaultColor
     return color
+
 
 def main():
     logging.basicConfig(filename="logs/info.log", filemode="a", level=logging.DEBUG)
@@ -60,5 +66,6 @@ def main():
     weather = get_weather()
     weather_color = set_weather_color(weather)
     change_lamp_color(weather_color, lamp)
+
 
 main()
