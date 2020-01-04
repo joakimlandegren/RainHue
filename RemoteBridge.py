@@ -1,10 +1,11 @@
+import json
+import logging
+import os
+import platform
 import socket
 
-from phue import Bridge, USER_HOME, Light, is_string, PhueRequestTimeout
-import logging
-import os, platform
 import requests
-import json
+from phue import Bridge, USER_HOME, Light, is_string, PhueRequestTimeout
 
 
 class RemoteBridge(Bridge):
