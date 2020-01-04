@@ -1,5 +1,7 @@
 #!/usr/bin/python
 import logging
+import os
+
 from RemoteBridge import RemoteBridge
 import localconfig as cfg
 from forecastiopy import *
@@ -58,7 +60,7 @@ def set_weather_color(hourly_weather):
 
 
 def main():
-    logging.basicConfig(filename="logs/info.log", filemode="a", level=logging.DEBUG)
+    logging.basicConfig(filename=os.path.dirname(__file__) + "/logs/info.log", filemode="a", level=logging.DEBUG)
     logging.debug('Starting application ********************')
     connect_to_hue_bridge_and_fetch_lamps()
     lamp = cfg.selectedLamp

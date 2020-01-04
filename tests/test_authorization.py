@@ -2,7 +2,6 @@
 
 import unittest
 import localconfig as cfg
-import socket
 import authorization
 
 valid_params_dict = {
