@@ -65,9 +65,9 @@ class RemoteBridge(Bridge):
         if mode == 'list':
             return self.lights_by_id.values()
 
-    def request(self, mode=None, address=None, data=None):  # TODO Add support for sending parameters in request
+    def request(self, mode=None, address=None, data=None):
         """ Utility function for HTTP GET/PUT requests for the API"""
-        auth_token = 'hauhAMjlqHmUb8t8LgILiNu8zaG8'
+        auth_token = 'HjnBtNdT8wGVQaxxbN2yVEEH3qbY'
         header = {
             'Authorization': 'Bearer ' + auth_token,
             'Content-type': 'application/json'

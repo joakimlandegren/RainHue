@@ -1,6 +1,5 @@
 #!/usr/bin/python
 import logging
-import os
 
 from RemoteBridge import RemoteBridge
 import localconfig as cfg
@@ -8,17 +7,17 @@ from forecastiopy import *
 
 
 def connect_to_hue_bridge_and_fetch_lamps():
-    b = RemoteBridge(cfg.API_BASE_URI, cfg.USER_NAME)
-    global light_names
+    b = RemoteBridge(cfg.uri, cfg.username, )
     light_names = b.get_light_objects('name')
+    return light_names
 
 
-def init_lamps(lamp):
+def init_lamps(lamp, light_names):
     # Turn lamp on and Set Lamp colors
     light_names[lamp].on = True
 
 
-def change_lamp_color(lamp_color, lamp):
+def change_lamp_color(light_names, lamp_color, lamp):
     light_names[lamp].brightness = lamp_color[0]
     light_names[lamp].hue = lamp_color[1]
     light_names[lamp].saturation = lamp_color[2]
@@ -34,16 +33,14 @@ def get_weather():
         hourly_weather = FIOHourly.FIOHourly(fio)
         return hourly_weather
     except Exception:
-        logging.warning('No Hourly data')
+        logging.error('No Hourly data')
 
 
 # Get weather forecast for next 12 hours and set lamp color to blue if it will rain
 def set_weather_color(hourly_weather):
     # Defines possible weather strings from API to trigger on
-    rain_types = list(['Rain', 'Light Rain', 'Drizzle', 'Heavy Rain'])
+    rain_types = ['Rain', 'Light Rain', 'Drizzle', 'Heavy Rain']
     snow_types = ['Snow', 'Hail', 'Heavy Snow', 'Light Snow']
-
-    logging.info('Weather forecast for the following hours')
 
     for hour in range(0, 12):
         if hourly_weather.get_hour(hour)["summary"] in rain_types:
@@ -57,17 +54,3 @@ def set_weather_color(hourly_weather):
             print(hourly_weather.get_hour(hour)["summary"])
         color = cfg.defaultColor
     return color
-
-
-def main():
-    logging.basicConfig(filename=os.path.dirname(__file__) + "/logs/info.log", filemode="a", level=logging.DEBUG)
-    logging.debug('Starting application ********************')
-    connect_to_hue_bridge_and_fetch_lamps()
-    lamp = cfg.selectedLamp
-    init_lamps(lamp)
-    weather = get_weather()
-    weather_color = set_weather_color(weather)
-    change_lamp_color(weather_color, lamp)
-
-
-main()

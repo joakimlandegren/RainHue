@@ -1,3 +1,4 @@
+flask
 phue==0.9
 requests==2.18.4
 git+https://github.com/dvdme/forecastiopy.git#egg=forecastiopy
