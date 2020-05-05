@@ -7,6 +7,7 @@ import socket
 import requests
 from phue import Bridge, USER_HOME, Light, is_string, PhueRequestTimeout
 
+TOKEN: str = 'PNo6oAulRUwShi7YqTW3xK9z1z3z'
 
 class RemoteBridge(Bridge):
 
@@ -39,6 +40,9 @@ class RemoteBridge(Bridge):
 
         self.connect()
 
+    def __repr__(self):
+        return '<RemoteBridge Object>'
+
     def connect(self):
         """ Connect to the Hue bridge """
         logging.info('Attempting to connect to the bridge...')
@@ -54,7 +58,7 @@ class RemoteBridge(Bridge):
         Set mode='id' for a dict by light ID, or mode='name' for a dict by light name.   """
 
         if self.lights_by_id == {}:
-            lights = self.request('GET', self.uri + 'bridge/' + self.username + '/lights/')
+            lights = self.request('GET', self.uri + 'bridge/' + self.username + '/lights/', auth_token=TOKEN)
             for light in lights:
                 self.lights_by_id[int(light)] = Light(self, int(light))
                 self.lights_by_name[lights[light]['name']] = self.lights_by_id[int(light)]
@@ -65,9 +69,9 @@ class RemoteBridge(Bridge):
         if mode == 'list':
             return self.lights_by_id.values()
 
-    def request(self, mode=None, address=None, data=None):
+
+    def request(self, mode=None, address=None, data=None, auth_token=None):
         """ Utility function for HTTP GET/PUT requests for the API"""
-        auth_token = 'HjnBtNdT8wGVQaxxbN2yVEEH3qbY'
         header = {
             'Authorization': 'Bearer ' + auth_token,
             'Content-type': 'application/json'
@@ -127,14 +131,14 @@ class RemoteBridge(Bridge):
             logging.info(str(data))
             if parameter == 'name':
                 result.append(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(
-                    converted_light) + '/state', json.dumps(data)))
+                    converted_light) + '/state', json.dumps(data), auth_token=TOKEN))
             else:
                 if is_string(light):
                     converted_light = self.get_light_id_by_name(light)
                 else:
                     converted_light = light
                 result.append(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(
-                    converted_light) + '/state', json.dumps(data)))
+                    converted_light) + '/state', json.dumps(data), auth_token=TOKEN))
 
         logging.debug(result)
         return result
