@@ -7,11 +7,9 @@ import socket
 import requests
 from phue import Bridge, USER_HOME, Light, is_string, PhueRequestTimeout
 
-TOKEN: str = 'PNo6oAulRUwShi7YqTW3xK9z1z3z'
-
 class RemoteBridge(Bridge):
 
-    def __init__(self, uri=None, username=None, config_file_path=None):
+    def __init__(self, uri=None, username=None, config_file_path=None, token=None):
         """ Initialization function.
 
         Parameters:
@@ -37,6 +35,7 @@ class RemoteBridge(Bridge):
         self.sensors_by_id = {}
         self.sensors_by_name = {}
         self._name = None
+        self.token = token
 
         self.connect()
 
@@ -58,7 +57,7 @@ class RemoteBridge(Bridge):
         Set mode='id' for a dict by light ID, or mode='name' for a dict by light name.   """
 
         if self.lights_by_id == {}:
-            lights = self.request('GET', self.uri + 'bridge/' + self.username + '/lights/', auth_token=TOKEN)
+            lights = self.request('GET', self.uri + 'bridge/' + self.username + '/lights/', auth_token=self.token)
             for light in lights:
                 self.lights_by_id[int(light)] = Light(self, int(light))
                 self.lights_by_name[lights[light]['name']] = self.lights_by_id[int(light)]
@@ -91,10 +90,10 @@ class RemoteBridge(Bridge):
                 response = requests.post(address, headers=header, data=data)
             else:
                 raise ConnectionError('No mode provided for the request method')
-            logging.debug("{0} {1} {2}".format(mode, address, str(data)))
+            logging.debug(f"{mode} {address} {data}")
 
         except socket.timeout:
-            error = "{} Request to {}{} timed out.".format(mode, self.uri, address)
+            error = f"{mode} Request to {self.uri}{address} timed out."
 
             logging.exception(error)
             raise PhueRequestTimeout(None, error)
@@ -129,16 +128,16 @@ class RemoteBridge(Bridge):
         result = []
         for light in light_id_array:
             logging.info(str(data))
+            if is_string(light):
+                converted_light = self.get_light_id_by_name(light)
+            else:
+                converted_light = light
             if parameter == 'name':
                 result.append(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(
-                    converted_light) + '/state', json.dumps(data), auth_token=TOKEN))
+                    converted_light), json.dumps(data), auth_token=self.token))
             else:
-                if is_string(light):
-                    converted_light = self.get_light_id_by_name(light)
-                else:
-                    converted_light = light
                 result.append(self.request('PUT', self.uri + 'bridge/' + self.username + '/lights/' + str(
-                    converted_light) + '/state', json.dumps(data), auth_token=TOKEN))
+                    converted_light) + '/state', json.dumps(data), auth_token=self.token))
 
         logging.debug(result)
         return result
