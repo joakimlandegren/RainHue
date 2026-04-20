@@ -1,4 +1,4 @@
-flask
+flask>=3.0,<4.0
 phue==0.9
-requests==2.20.0
-git+https://github.com/dvdme/forecastiopy.git#egg=forecastiopy
+requests>=2.31,<3.0
+python-dotenv>=1.0,<2.0

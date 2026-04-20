@@ -1,13 +1,17 @@
 #!/usr/bin/python
 import logging
 from rain_hue.remote_bridge import RemoteBridge
-import localconfig as cfg
+from rain_hue import config as cfg
 
 
 class Lamps:
-    def __init__(self):
-        self._bridge = RemoteBridge(cfg.uri, cfg.username, )
+    def __init__(self, token=None):
+        self._bridge = RemoteBridge(cfg.uri, cfg.username, token=token)
         self._light_names = self._bridge.get_light_objects('name')
+
+    def get_available_lamps(self):
+        """Return the names of all available lamps."""
+        return self._light_names.keys()
 
     def turn_on_lamp(self, lamp):
         self._light_names[lamp].on = True
