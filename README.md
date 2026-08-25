@@ -88,8 +88,19 @@ HTTP API (manual remote trigger):
 ```
 python -m rain_hue.api        # or: flask --app rain_hue.api:create_app run
 ```
+- `GET /` — web UI (mobile-friendly, LAN-only, no auth): lamp status card
+  (name, on/off, live color swatch), last-decision card (reason + weather),
+  manual mode buttons (rain/snow/heat/extreme/neutral) and "run morning
+  logic now".
 - `POST /set-color` — run one cycle now; `?lamp=Name` to override.
 - `GET /weather` — the condensed 12h forecast (no lamp changes).
+- `GET /api/status` — lamp state + last decision seen by this process.
+- `POST /api/mode/<name>` — apply a manual mode (rain/snow/heat/extreme/neutral).
+- `POST /api/morning` — run the morning logic now.
+
+Note: "last decision" is tracked in API-process memory — it reflects runs
+made through the web/API. Cron CLI runs are separate processes and don't
+appear on the decision card.
 
 ## Token refresh
 
