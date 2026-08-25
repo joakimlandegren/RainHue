@@ -42,6 +42,14 @@ def hue():
     return FakeHue()
 
 
+@pytest.fixture(autouse=True)
+def state_file(tmp_path, monkeypatch):
+    """Isolate the state file per test."""
+    path = str(tmp_path / "state.json")
+    monkeypatch.setenv("RAINHUE_STATE_FILE", path)
+    return path
+
+
 @pytest.fixture
 def client(hue):
     app = create_app(hue_client=hue)
@@ -137,3 +145,26 @@ class TestMorning:
         resp = client.post("/api/morning")
         assert resp.status_code == 502
         assert "meteo down" in resp.get_json()["error"]
+
+
+class TestStateSharing:
+    def test_status_reads_state_file_written_by_another_process(self, client, state_file):
+        # Simulate a cron CLI run: write the file directly, then ask the API.
+        from rain_hue.state import write_state
+
+        write_state({"lamp": "Desk Lamp", "reason": "snow (1.0cm)", "xy": [0.24, 0.24],
+                     "brightness": 65.0, "at": "2026-08-25T06:00:00+00:00", "forecast": None})
+        body = client.get("/api/status").get_json()
+        assert body["last_decision"]["reason"] == "snow (1.0cm)"
+
+    def test_status_falls_back_to_memory_when_file_corrupt(self, client, hue, state_file):
+        # API mode trigger writes both memory + file
+        client.post("/api/mode/heat")
+        # Corrupt the file -> status must fall back to the in-memory record
+        with open(state_file, "w") as f:
+            f.write("{corrupt")
+        body = client.get("/api/status").get_json()
+        assert body["last_decision"]["reason"] == "manual mode: heat"
+
+    def test_status_none_when_no_file_and_no_memory(self, client):
+        assert client.get("/api/status").get_json()["last_decision"] is None
