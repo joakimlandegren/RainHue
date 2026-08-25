@@ -130,3 +130,15 @@ class HueClient:
             },
         )
         logger.info("Set light %s to xy=%s brightness=%.0f", light_id, xy, brightness)
+
+    def get_light_status(self, light_id: str) -> dict:
+        """Read current light state for the status card."""
+        data = self._clip("GET", f"/api/clip/v2/resource/light/{light_id}")
+        light = (data.get("data") or [{}])[0]
+        color = light.get("color", {}).get("xy", {})
+        return {
+            "name": light.get("metadata", {}).get("name", light_id),
+            "on": light.get("on", {}).get("on", False),
+            "xy": [color.get("x"), color.get("y")] if color else None,
+            "brightness": light.get("dimming", {}).get("brightness"),
+        }

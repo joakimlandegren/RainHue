@@ -34,6 +34,23 @@ _NEUTRAL_WARM_WHITE = (0.457, 0.410)
 _ORANGE = (0.600, 0.380)
 _RED = (0.675, 0.322)
 
+# Manual trigger modes for the web UI: name -> a representative ColorDecision.
+# These reuse the same presets as the weather logic (rain = moderate rain,
+# snow = moderate snow, heat/extreme = the two heat bands).
+MODES: dict[str, "ColorDecision"] = {}
+
+
+def _register_modes() -> None:
+    MODES.update(
+        {
+            "rain": ColorDecision(_LIGHT_BLUE, 70.0, "manual mode: rain"),
+            "snow": ColorDecision(_COLD_WHITE, 65.0, "manual mode: snow"),
+            "heat": ColorDecision(_ORANGE, 90.0, "manual mode: heat"),
+            "extreme": ColorDecision(_RED, 100.0, "manual mode: extreme heat"),
+            "neutral": ColorDecision(_NEUTRAL_WARM_WHITE, 60.0, "manual mode: neutral"),
+        }
+    )
+
 
 def decide_color(forecast: Forecast, thresholds: Thresholds) -> ColorDecision:
     """Decide the lamp color for a forecast. Pure function — fully testable."""
@@ -57,3 +74,6 @@ def decide_color(forecast: Forecast, thresholds: Thresholds) -> ColorDecision:
 
     # 3. Neutral default.
     return ColorDecision(_NEUTRAL_WARM_WHITE, 60.0, "no significant weather")
+
+
+_register_modes()
