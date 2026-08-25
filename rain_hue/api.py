@@ -1,66 +1,66 @@
-#!/usr/bin/python
-import os
-from rain_hue.weather import Weather
-from rain_hue.lamps import Lamps
-from rain_hue import config as cfg
-from flask import Flask, request, jsonify
+"""HTTP API for RainHue v2 — small Flask surface for manual remote triggers."""
+
 import logging
+
+from flask import Flask, jsonify, request
+
+from .config import load
+from .core import run_once
+from .weather import fetch_forecast
+
+logger = logging.getLogger(__name__)
 
 
 def create_app():
-    os.makedirs('logs', exist_ok=True)
-    logging.basicConfig(filename='logs/info.log', filemode='a', level=logging.INFO)
-    logging.info('Starting application *************************')
-
     app = Flask(__name__)
+    app.config["rain_hue_config"] = load()
 
-    app.config['lamps'] = Lamps(token=cfg.hue_token)
-    app.config['weather'] = Weather(cfg.coordinates[0], cfg.coordinates[1])
-
-    @app.route("/weather", methods=["GET"])
-    def return_weather_as_json():
-        """Return 12-hour weather forecast as JSON."""
-        weather = app.config['weather']
+    @app.post("/set-color")
+    def set_color():
+        """Run one weather->color cycle. Optional ?lamp=Name override."""
+        config = app.config["rain_hue_config"]
+        lamp = request.args.get("lamp")
         try:
-            weather.get_weather()
-            forecast = weather.print_weather_conditions()
-            return jsonify(forecast)
-        except Exception as e:
-            return jsonify({"error": "Failed to fetch weather data", "details": str(e)}), 502
+            result = run_once(config, lamp=lamp)
+        except RuntimeError as exc:
+            logger.exception("set-color failed")
+            return jsonify({"error": str(exc)}), 502
+        return jsonify(
+            {
+                "lamp": result.lamp,
+                "reason": result.decision.reason,
+                "xy": list(result.decision.xy),
+                "brightness": result.decision.brightness,
+                "forecast": {
+                    "total_precip_mm": result.forecast.total_precip_mm,
+                    "total_snowfall_cm": result.forecast.total_snowfall_cm,
+                    "max_precip_probability": result.forecast.max_precip_probability,
+                    "temp_max_c": result.forecast.temp_max_c,
+                },
+            }
+        )
 
-    @app.route("/weather", methods=["POST"])
-    def set_lamp_color_by_weather():
-        """Set lamp color based on weather forecast."""
-        lamps = app.config['lamps']
-        weather = app.config['weather']
-
-        lamp = request.args.get('lamp', cfg.selectedLamp)
-
-        # Validate lamp name exists
-        available_lamps = list(lamps.get_available_lamps())
-        if lamp not in available_lamps:
-            return jsonify({
-                "error": f"Lamp '{lamp}' not found",
-                "available_lamps": available_lamps
-            }), 404
-
+    @app.get("/weather")
+    def weather():
+        """Return the condensed 12h forecast (no lamp changes)."""
+        config = app.config["rain_hue_config"]
         try:
-            lamps.turn_on_lamp(lamp)
-            weather.get_weather()
-            weather_color = weather.set_weather_color(cfg.rainColor, cfg.snowColor, cfg.defaultColor)
-            lamps.change_lamp_color(weather_color, lamp)
-            return jsonify({
-                "lamp": lamp,
-                "color": {"brightness": weather_color[0], "hue": weather_color[1], "saturation": weather_color[2]}
-            })
-        except KeyError as e:
-            return jsonify({"error": f"Lamp '{lamp}' not found", "details": str(e)}), 404
-        except Exception as e:
-            return jsonify({"error": "Failed to set lamp color", "details": str(e)}), 502
+            f = fetch_forecast(config.latitude, config.longitude, config.timezone, config.forecast_hours)
+        except RuntimeError as exc:
+            logger.exception("weather fetch failed")
+            return jsonify({"error": str(exc)}), 502
+        return jsonify(
+            {
+                "total_precip_mm": f.total_precip_mm,
+                "total_snowfall_cm": f.total_snowfall_cm,
+                "max_precip_probability": f.max_precip_probability,
+                "temp_max_c": f.temp_max_c,
+            }
+        )
 
     return app
 
 
-if __name__ == '__main__':
-    app = create_app()
-    app.run(port=5000)
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    create_app().run(host="0.0.0.0", port=5000)
