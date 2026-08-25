@@ -98,9 +98,9 @@ python -m rain_hue.api        # or: flask --app rain_hue.api:create_app run
 - `POST /api/mode/<name>` — apply a manual mode (rain/snow/heat/extreme/neutral).
 - `POST /api/morning` — run the morning logic now.
 
-Note: "last decision" is tracked in API-process memory — it reflects runs
-made through the web/API. Cron CLI runs are separate processes and don't
-appear on the decision card.
+Note: "last decision" is persisted to a small JSON state file
+(`~/.rainhue-state.json`, override with `RAINHUE_STATE_FILE`) on every run —
+cron CLI runs and web/API triggers all appear on the decision card.
 
 ## Token refresh
 

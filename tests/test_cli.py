@@ -40,6 +40,26 @@ def test_run_once_end_to_end(mocker):
     assert hue.set_calls == [("light-1", result.decision.xy, result.decision.brightness)]
 
 
+def test_run_once_writes_state_file(mocker, tmp_path, monkeypatch):
+    """The CLI (and every run_once caller) records the decision for the web UI."""
+    state_file = str(tmp_path / "state.json")
+    monkeypatch.setenv("RAINHUE_STATE_FILE", state_file)
+    mocker.patch(
+        "rain_hue.core.fetch_forecast",
+        return_value=Forecast(2.0, 0.0, 80.0, 18.0),
+    )
+    run_once(_config(), hue_client=_FakeHue())
+
+    import json
+
+    with open(state_file) as f:
+        record = json.load(f)
+    assert record["reason"] == "rain (2.0mm)"
+    assert record["lamp"] == "Desk Lamp"
+    assert record["forecast"]["total_precip_mm"] == 2.0
+    assert record["at"]
+
+
 def test_run_once_lamp_override(mocker):
     mocker.patch("rain_hue.core.fetch_forecast", return_value=Forecast(0.0, 0.0, 0.0, 15.0))
     hue = _FakeHue()

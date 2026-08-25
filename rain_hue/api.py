@@ -10,44 +10,26 @@ LAN-only by design (no auth layer — Joe's scope). Serves:
 """
 
 import logging
-from datetime import datetime, timezone
 
 from flask import Flask, jsonify, request
 
 from .colors import MODES, ColorDecision
 from .config import load
-from .core import run_once
+from .core import run_once, serialize_decision
 from .hue import HueClient, HueError
+from .state import read_state, write_state
 from .weather import fetch_forecast
 
 logger = logging.getLogger(__name__)
 
 
-def _serialize_decision(decision: ColorDecision, lamp: str, forecast=None) -> dict:
-    return {
-        "lamp": lamp,
-        "reason": decision.reason,
-        "xy": list(decision.xy),
-        "brightness": decision.brightness,
-        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "forecast": {
-            "total_precip_mm": forecast.total_precip_mm,
-            "total_snowfall_cm": forecast.total_snowfall_cm,
-            "max_precip_probability": forecast.max_precip_probability,
-            "temp_max_c": forecast.temp_max_c,
-        }
-        if forecast
-        else None,
-    }
-
-
 def create_app(hue_client=None):
     """App factory. hue_client is injectable for tests.
 
-    ponytail: "last decision" lives in process memory — it reflects runs made
-    through this API process (UI buttons, /set-color, /api/morning). Cron CLI
-    runs happen in a separate process and are not visible here; making that
-    durable would need a small state file, deliberately out of scope.
+    Last decision is shared across processes via the state file
+    (see state.py): cron CLI runs and API triggers both write it; the status
+    endpoint reads it as the source of truth, falling back to this process's
+    in-memory record if the file is missing or corrupt.
     """
     app = Flask(__name__)
     app.config["rain_hue_config"] = load()
@@ -61,6 +43,15 @@ def create_app(hue_client=None):
 
     def _lamp_name() -> str:
         return app.config["rain_hue_config"].hue.default_lamp
+
+    def _record_decision(decision: ColorDecision, lamp: str, forecast=None) -> dict:
+        record = serialize_decision(decision, lamp, forecast)
+        app.config["rain_hue_last_decision"] = record
+        write_state(record)
+        return record
+
+    def _last_decision() -> dict | None:
+        return read_state() or app.config["rain_hue_last_decision"]
 
     # ── Page ─────────────────────────────────────────────────────────────────
 
@@ -85,7 +76,7 @@ def create_app(hue_client=None):
             {
                 "lamp": light,
                 "lamp_error": light_error,
-                "last_decision": app.config["rain_hue_last_decision"],
+                "last_decision": _last_decision(),
                 "modes": sorted(MODES.keys()),
             }
         )
@@ -103,9 +94,7 @@ def create_app(hue_client=None):
         except (HueError, RuntimeError) as exc:
             logger.exception("mode '%s' failed", name)
             return jsonify({"error": str(exc)}), 502
-        record = _serialize_decision(decision, lamp)
-        app.config["rain_hue_last_decision"] = record
-        return jsonify(record)
+        return jsonify(_record_decision(decision, lamp))
 
     @app.post("/api/morning")
     def morning():
@@ -118,7 +107,8 @@ def create_app(hue_client=None):
         except RuntimeError as exc:
             logger.exception("morning run failed")
             return jsonify({"error": str(exc)}), 502
-        record = _serialize_decision(result.decision, result.lamp, result.forecast)
+        # run_once already wrote the state file; update the in-memory copy too.
+        record = serialize_decision(result.decision, result.lamp, result.forecast)
         app.config["rain_hue_last_decision"] = record
         return jsonify(record)
 
@@ -133,9 +123,9 @@ def create_app(hue_client=None):
         except RuntimeError as exc:
             logger.exception("set-color failed")
             return jsonify({"error": str(exc)}), 502
-        record = _serialize_decision(result.decision, result.lamp, result.forecast)
+        record = serialize_decision(result.decision, result.lamp, result.forecast)
         app.config["rain_hue_last_decision"] = record
-        return jsonify({**record, "forecast": record["forecast"]})
+        return jsonify(record)
 
     @app.get("/weather")
     def weather():
