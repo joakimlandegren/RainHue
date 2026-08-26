@@ -59,13 +59,47 @@ def test_set_color_puts_clipv2_body(mocker):
 
     args, kwargs = req.call_args
     assert args[0] == "PUT"
-    assert args[1] == "https://api.meethue.com/route/api/bridgeuser/api/clip/v2/resource/light/light-1"
+    # Remote v2 API: /route/clip/v2/... with the bridge user in the
+    # hue-application-key header (verified against production).
+    assert args[1] == "https://api.meethue.com/route/clip/v2/resource/light/light-1"
     assert kwargs["headers"]["Authorization"] == "Bearer old-token"
+    assert kwargs["headers"]["hue-application-key"] == "bridgeuser"
     assert kwargs["json"] == {
         "on": {"on": True},
         "color": {"xy": {"x": 0.17, "y": 0.32}},
         "dimming": {"brightness": 70.0},
     }
+
+
+def test_list_lights_uses_correct_remote_path(mocker):
+    """Regression: remote API is /route/clip/v2/... (no /api/<user>/api prefix)."""
+    req = mocker.patch("rain_hue.hue.requests.request", return_value=_Resp(200, LIGHTS))
+    client = HueClient(_cfg())
+    client.list_lights()
+    url = req.call_args.args[1]
+    assert url == "https://api.meethue.com/route/clip/v2/resource/light"
+    assert "/api/clip" not in url
+
+
+def test_get_light_status_uses_correct_remote_path(mocker):
+    payload = {"data": [{"metadata": {"name": "Desk Lamp"}, "on": {"on": True},
+                         "color": {"xy": {"x": 0.3, "y": 0.3}}, "dimming": {"brightness": 55.0}}]}
+    req = mocker.patch("rain_hue.hue.requests.request", return_value=_Resp(200, payload))
+    client = HueClient(_cfg())
+    status = client.get_light_status("light-1")
+    assert req.call_args.args[1] == "https://api.meethue.com/route/clip/v2/resource/light/light-1"
+    assert status["on"] is True
+
+
+def test_list_lights_error_list_raises_hueerror(mocker):
+    """Regression: the old wrong path returned a JSON list of error objects,
+    which crashed list_lights with AttributeError. Now raises HueError with
+    the error description."""
+    error_list = [{"error": {"type": 1, "address": "/lights", "description": "unauthorized user"}}]
+    mocker.patch("rain_hue.hue.requests.request", return_value=_Resp(200, error_list))
+    client = HueClient(_cfg())
+    with pytest.raises(HueError, match="unauthorized user"):
+        client.list_lights()
 
 
 def test_brightness_clamped(mocker):
