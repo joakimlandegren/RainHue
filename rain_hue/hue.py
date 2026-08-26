@@ -80,12 +80,19 @@ class HueClient:
     # ── HTTP plumbing ────────────────────────────────────────────────────────
 
     def _clip(self, method: str, path: str, body: dict | None = None, retry: bool = True) -> dict:
-        """Call the remote CLIP v2 API; refresh the token once on 401."""
+        """Call the remote CLIP v2 API; refresh the token once on 401.
+
+        Verified against production: the remote v2 API lives at
+        /route/clip/v2/... with the bridge user in the hue-application-key
+        header (NOT /route/api/<user>/api/clip/v2/... — that returns a JSON
+        list of error objects).
+        """
         if not self._cfg.username:
             raise HueError("HUE_USERNAME (bridge whitelist user) is not configured.")
-        url = f"{self._cfg.base_url}/route/api/{self._cfg.username}{path}"
+        url = f"{self._cfg.base_url}/route{path}"
         headers = {
             "Authorization": f"Bearer {self._tokens.access}",
+            "hue-application-key": self._cfg.username,
             "Content-Type": "application/json",
         }
         try:
@@ -106,7 +113,14 @@ class HueClient:
 
     def list_lights(self) -> list[dict]:
         """Return all lights visible to the bridge user."""
-        data = self._clip("GET", "/api/clip/v2/resource/light")
+        data = self._clip("GET", "/clip/v2/resource/light")
+        if isinstance(data, list):
+            # Wrong path / auth shape: remote returns [{"error": {...}}, ...]
+            # instead of {"data": [...]}. Surface the description, don't crash.
+            desc = "; ".join(
+                str(e.get("error", {}).get("description", e)) for e in data if isinstance(e, dict)
+            )
+            raise HueError(f"Hue API returned an error list: {desc or data}")
         return data.get("data", [])
 
     def find_light_id(self, name: str) -> str:
@@ -122,7 +136,7 @@ class HueClient:
         """Turn the light on and set xy color + brightness (0-100)."""
         self._clip(
             "PUT",
-            f"/api/clip/v2/resource/light/{light_id}",
+            f"/clip/v2/resource/light/{light_id}",
             {
                 "on": {"on": True},
                 "color": {"xy": {"x": xy[0], "y": xy[1]}},
@@ -133,7 +147,7 @@ class HueClient:
 
     def get_light_status(self, light_id: str) -> dict:
         """Read current light state for the status card."""
-        data = self._clip("GET", f"/api/clip/v2/resource/light/{light_id}")
+        data = self._clip("GET", f"/clip/v2/resource/light/{light_id}")
         light = (data.get("data") or [{}])[0]
         color = light.get("color", {}).get("xy", {})
         return {

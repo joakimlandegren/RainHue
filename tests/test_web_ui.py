@@ -168,3 +168,43 @@ class TestStateSharing:
 
     def test_status_none_when_no_file_and_no_memory(self, client):
         assert client.get("/api/status").get_json()["last_decision"] is None
+
+
+class TestJsonErrorBodies:
+    """Regression: API failures must return JSON error bodies with a JSON
+    content-type, never Flask's HTML error page (which crashed the web UI's
+    fetch with 'Unexpected token <')."""
+
+    def test_morning_failure_is_json_502(self, client, mocker):
+        mocker.patch(
+            "rain_hue.core.fetch_forecast",
+            side_effect=RuntimeError("meteo down"),
+        )
+        resp = client.post("/api/morning")
+        assert resp.status_code == 502
+        assert resp.content_type.startswith("application/json")
+        assert "error" in resp.get_json()
+
+    def test_mode_failure_is_json_502(self):
+        app = create_app(hue_client=FakeHue(fail=True))
+        app.config.update(TESTING=True)
+        resp = app.test_client().post("/api/mode/rain")
+        assert resp.status_code == 502
+        assert resp.content_type.startswith("application/json")
+        assert "error" in resp.get_json()
+
+    def test_unhandled_error_on_api_route_is_json_500(self, client, mocker):
+        client.application.config["PROPAGATE_EXCEPTIONS"] = False
+        mocker.patch(
+            "rain_hue.core.fetch_forecast",
+            side_effect=ValueError("totally unexpected"),
+        )
+        resp = client.post("/api/morning")
+        assert resp.status_code == 500
+        assert resp.content_type.startswith("application/json")
+        assert resp.get_json() == {"error": "Internal server error"}
+
+    def test_page_still_html(self, client):
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "text/html" in resp.content_type

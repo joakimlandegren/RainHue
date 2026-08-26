@@ -59,6 +59,21 @@ def create_app(hue_client=None):
     def index():
         return _INDEX_HTML
 
+    # ── Error shape: API consumers always get JSON, never the HTML 500 page ──
+
+    @app.errorhandler(404)
+    def not_found(e):
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Not found"}), 404
+        return e
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        logger.exception("unhandled error on %s", request.path)
+        if request.path.startswith("/api/") or request.path == "/set-color":
+            return jsonify({"error": "Internal server error"}), 500
+        return e
+
     # ── Data endpoints ───────────────────────────────────────────────────────
 
     @app.get("/api/status")
@@ -222,9 +237,30 @@ const MODE_STYLE = {
 };
 const MODE_LABEL = { rain: '🌧 Rain', snow: '❄ Snow', heat: '🌤 Heat', extreme: '🔥 Extreme', neutral: '💡 Neutral' };
 
+async function fetchJson(url, options = {}) {
+  // Robust fetch: never let a non-JSON body (e.g. an HTML 500 page) surface
+  // as a raw "Unexpected token <" parse error — turn it into a readable one.
+  const resp = await fetch(url, options);
+  const contentType = resp.headers.get('content-type') || '';
+  let body = null;
+  if (contentType.includes('application/json')) {
+    body = await resp.json();
+  } else {
+    const text = await resp.text();
+    if (!resp.ok) {
+      throw new Error('Server error ' + resp.status + (text ? ' — the endpoint did not return JSON' : ''));
+    }
+    throw new Error('Unexpected response from server (not JSON)');
+  }
+  if (!resp.ok) {
+    throw new Error((body && body.error) || ('Server error ' + resp.status));
+  }
+  return body;
+}
+
 async function refresh() {
   try {
-    const s = await (await fetch('/api/status')).json();
+    const s = await fetchJson('/api/status');
     document.getElementById('lamp-name').textContent = s.lamp.name || '—';
     if (s.lamp_error) {
       document.getElementById('lamp-state').textContent = 'unreachable';
@@ -257,7 +293,7 @@ async function refresh() {
         const btn = document.createElement('button');
         btn.textContent = MODE_LABEL[m] || m;
         btn.className = 'py-2.5 rounded-xl border text-sm font-semibold transition-colors ' + (MODE_STYLE[m] || '');
-        btn.onclick = () => act('/api/mode/' + m, btn);
+        btn.onclick = () => act('/api/mode/' + m, btn, (MODE_LABEL[m] || m));
         document.getElementById('modes').appendChild(btn);
       }
     }
@@ -266,27 +302,25 @@ async function refresh() {
   }
 }
 
-async function act(url, btn) {
+async function act(url, btn, label) {
   const msg = document.getElementById('action-msg');
   msg.textContent = 'working…';
   msg.className = 'text-xs text-center mt-2 h-4 text-slate-500';
   if (btn) btn.disabled = true;
   try {
-    const resp = await fetch(url, { method: 'POST' });
-    const body = await resp.json();
-    if (!resp.ok) throw new Error(body.error || resp.status);
+    const body = await fetchJson(url, { method: 'POST' });
     msg.textContent = '✓ ' + body.reason;
     msg.className = 'text-xs text-center mt-2 h-4 text-emerald-600';
     refresh();
   } catch (e) {
-    msg.textContent = '✗ ' + e.message;
+    msg.textContent = '✗ ' + label + ' failed: ' + e.message;
     msg.className = 'text-xs text-center mt-2 h-4 text-red-600';
   } finally {
     if (btn) btn.disabled = false;
   }
 }
 
-document.getElementById('morning').onclick = (e) => act('/api/morning', e.target);
+document.getElementById('morning').onclick = (e) => act('/api/morning', e.target, 'Morning logic');
 refresh();
 setInterval(refresh, 30000);
 </script>
