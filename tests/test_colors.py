@@ -4,6 +4,7 @@ import pytest
 
 from rain_hue.colors import (
     _COLD_WHITE,
+    _SNOW_GREEN,
     _DEEP_BLUE,
     _DEEP_BLUE,
     _NEUTRAL_WARM_WHITE,
@@ -59,11 +60,11 @@ class TestRain:
 class TestSnow:
     def test_snow_is_cold_white(self):
         d = decide_color(f(snow=0.5), T)
-        assert d.xy == _COLD_WHITE
+        assert d.xy == _SNOW_GREEN
 
     def test_snow_at_min_threshold_counts(self):
         d = decide_color(f(snow=0.1), T)
-        assert d.xy == _COLD_WHITE
+        assert d.xy == _SNOW_GREEN
 
     def test_below_min_snow_is_neutral(self):
         d = decide_color(f(snow=0.05), T)
@@ -72,14 +73,14 @@ class TestSnow:
     def test_heavy_snow_brighter(self):
         light = decide_color(f(snow=0.5), T)
         heavy = decide_color(f(snow=3.0), T)
-        assert heavy.xy == _COLD_WHITE
+        assert heavy.xy == _SNOW_GREEN
         assert heavy.brightness > light.brightness
         assert "heavy" in heavy.reason
 
     def test_snow_beats_rain_in_wintry_mix(self):
         # Both rain and snow amounts present -> snow wins (wintry mix)
         d = decide_color(f(precip=3.0, snow=1.0), T)
-        assert d.xy == _COLD_WHITE
+        assert d.xy == _SNOW_GREEN
 
 
 class TestHeat:
@@ -109,7 +110,7 @@ class TestPriority:
 
     def test_snow_beats_extreme_heat(self):
         d = decide_color(f(snow=1.0, temp=35.0), T)
-        assert d.xy == _COLD_WHITE
+        assert d.xy == _SNOW_GREEN
 
     def test_no_precip_no_heat_is_neutral(self):
         d = decide_color(f(temp=10.0), T)
@@ -136,7 +137,7 @@ class TestFreezing:
 
     def test_snow_beats_freezing(self):
         d = decide_color(f(snow=1.0, temp=-5.0, temp_min=-5.0), T)
-        assert d.xy == _COLD_WHITE
+        assert d.xy == _SNOW_GREEN
         assert "snow" in d.reason
 
     def test_freezing_beats_heat(self):

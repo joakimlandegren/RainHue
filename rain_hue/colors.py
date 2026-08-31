@@ -30,7 +30,8 @@ class ColorDecision:
 # CIE xy presets.
 _LIGHT_BLUE = (0.169, 0.321)
 _DEEP_BLUE = (0.100, 0.100)  # dark blue
-_COLD_WHITE = (0.300, 0.600)  # green (snow / freezing)
+_SNOW_GREEN = (0.300, 0.600)  # green for snow
+_COLD_WHITE = (0.240, 0.240)  # cold white (freezing)
 _NEUTRAL_WARM_WHITE = (0.457, 0.410)
 _ORANGE = (0.600, 0.380)
 _RED = (0.675, 0.322)
@@ -45,7 +46,7 @@ def _register_modes() -> None:
     MODES.update(
         {
             "rain": ColorDecision(_DEEP_BLUE, 70.0, "manual mode: rain"),
-            "snow": ColorDecision(_COLD_WHITE, 65.0, "manual mode: snow"),
+            "snow": ColorDecision(_SNOW_GREEN, 65.0, "manual mode: snow"),
             "freezing": ColorDecision(_COLD_WHITE, 60.0, "manual mode: freezing"),
             "heat": ColorDecision(_ORANGE, 90.0, "manual mode: heat"),
             "extreme": ColorDecision(_RED, 100.0, "manual mode: extreme heat"),
@@ -60,8 +61,8 @@ def decide_color(forecast: Forecast, thresholds: Thresholds) -> ColorDecision:
     #    both occur (wintry mix looks like snow).
     if forecast.total_snowfall_cm >= thresholds.snow_min_cm:
         if forecast.total_snowfall_cm >= thresholds.snow_heavy_cm:
-            return ColorDecision(_COLD_WHITE, 100.0, f"heavy snow ({forecast.total_snowfall_cm:.1f}cm)")
-        return ColorDecision(_COLD_WHITE, 65.0, f"snow ({forecast.total_snowfall_cm:.1f}cm)")
+            return ColorDecision(_SNOW_GREEN, 100.0, f"heavy snow ({forecast.total_snowfall_cm:.1f}cm)")
+        return ColorDecision(_SNOW_GREEN, 65.0, f"snow ({forecast.total_snowfall_cm:.1f}cm)")
 
     if forecast.total_precip_mm >= thresholds.rain_min_mm:
         if forecast.total_precip_mm >= thresholds.rain_heavy_mm:
