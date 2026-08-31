@@ -5,7 +5,7 @@ import pytest
 from rain_hue.colors import (
     _COLD_WHITE,
     _DEEP_BLUE,
-    _LIGHT_BLUE,
+    _DEEP_BLUE,
     _NEUTRAL_WARM_WHITE,
     _ORANGE,
     _RED,
@@ -30,12 +30,12 @@ def f(precip=0.0, snow=0.0, temp=15.0, temp_min=15.0, prob=0.0) -> Forecast:
 class TestRain:
     def test_light_rain_is_light_blue(self):
         d = decide_color(f(precip=1.0), T)
-        assert d.xy == _LIGHT_BLUE
+        assert d.xy == _DEEP_BLUE
         assert "rain" in d.reason
 
     def test_rain_at_min_threshold_counts(self):
         d = decide_color(f(precip=0.1), T)
-        assert d.xy == _LIGHT_BLUE
+        assert d.xy == _DEEP_BLUE
 
     def test_below_min_rain_is_neutral(self):
         d = decide_color(f(precip=0.05), T)
@@ -105,7 +105,7 @@ class TestHeat:
 class TestPriority:
     def test_rain_beats_extreme_heat(self):
         d = decide_color(f(precip=2.0, temp=35.0), T)
-        assert d.xy == _LIGHT_BLUE
+        assert d.xy == _DEEP_BLUE
 
     def test_snow_beats_extreme_heat(self):
         d = decide_color(f(snow=1.0, temp=35.0), T)
@@ -132,7 +132,7 @@ class TestFreezing:
 
     def test_rain_beats_freezing(self):
         d = decide_color(f(precip=1.0, temp=-5.0, temp_min=-5.0), T)
-        assert d.xy == _LIGHT_BLUE
+        assert d.xy == _DEEP_BLUE
 
     def test_snow_beats_freezing(self):
         d = decide_color(f(snow=1.0, temp=-5.0, temp_min=-5.0), T)
@@ -163,7 +163,7 @@ class TestCustomThresholds:
     def test_custom_rain_threshold(self):
         t = Thresholds(rain_min_mm=2.0)
         assert decide_color(f(precip=1.0), t).xy == _NEUTRAL_WARM_WHITE
-        assert decide_color(f(precip=3.0), t).xy == _LIGHT_BLUE
+        assert decide_color(f(precip=3.0), t).xy == _DEEP_BLUE
 
     def test_custom_heat_threshold(self):
         t = Thresholds(temp_orange_c=20.0, temp_red_c=28.0)
