@@ -23,6 +23,7 @@ class Forecast:
     total_snowfall_cm: float  # total snowfall over next 12h
     max_precip_probability: float  # max hourly precipitation probability (0-100)
     temp_max_c: float  # today's maximum temperature
+    temp_min_c: float  # today's minimum temperature
 
     @property
     def has_rain(self) -> bool:
@@ -48,7 +49,7 @@ def fetch_forecast(
         "latitude": latitude,
         "longitude": longitude,
         "hourly": "precipitation_probability,precipitation,snowfall",
-        "daily": "temperature_2m_max",
+        "daily": "temperature_2m_max,temperature_2m_min",
         "timezone": timezone,
         "forecast_days": 1,
     }
@@ -67,6 +68,7 @@ def fetch_forecast(
         precip = [p or 0 for p in hourly["precipitation"]][:forecast_hours]
         snowfall = [s or 0 for s in hourly["snowfall"]][:forecast_hours]
         temp_max = float(data["daily"]["temperature_2m_max"][0])
+        temp_min = float(data["daily"]["temperature_2m_min"][0])
     except (KeyError, IndexError, TypeError, ValueError) as exc:
         logger.error("Malformed weather response: %s", exc)
         raise RuntimeError(f"Unexpected response format from Open-Meteo: {exc}") from exc
@@ -79,12 +81,14 @@ def fetch_forecast(
         total_snowfall_cm=round(sum(snowfall), 2),
         max_precip_probability=max(probs) if probs else 0.0,
         temp_max_c=temp_max,
+        temp_min_c=temp_min,
     )
     logger.info(
-        "Forecast: %.2fmm precip, %.2fcm snow, %.0f%% max prob, %.1f°C max",
+        "Forecast: %.2fmm precip, %.2fcm snow, %.0f%% max prob, %.1f°C max, %.1f°C min",
         forecast.total_precip_mm,
         forecast.total_snowfall_cm,
         forecast.max_precip_probability,
         forecast.temp_max_c,
+        forecast.temp_min_c,
     )
     return forecast

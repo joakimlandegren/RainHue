@@ -6,7 +6,7 @@ import requests
 from rain_hue.weather import fetch_forecast
 
 
-def _payload(probs, precip, snow, temp_max):
+def _payload(probs, precip, snow, temp_max, temp_min=10.0):
     n = max(len(probs), len(precip), len(snow))
     pad = lambda xs: list(xs) + [0] * (n - len(xs))
     return {
@@ -16,7 +16,11 @@ def _payload(probs, precip, snow, temp_max):
             "precipitation": pad(precip),
             "snowfall": pad(snow),
         },
-        "daily": {"time": ["2026-08-25"], "temperature_2m_max": [temp_max]},
+        "daily": {
+            "time": ["2026-08-25"],
+            "temperature_2m_max": [temp_max],
+            "temperature_2m_min": [temp_min],
+        },
     }
 
 
@@ -45,6 +49,13 @@ def test_fetch_forecast_aggregates_12h(mocker):
     assert f.total_snowfall_cm == pytest.approx(1.2)
     assert f.max_precip_probability == 80
     assert f.temp_max_c == 23.5
+
+
+def test_fetch_forecast_parses_temp_min(mocker):
+    payload = _payload(probs=[0] * 12, precip=[0] * 12, snow=[0] * 12, temp_max=8.0, temp_min=-3.2)
+    mocker.patch("rain_hue.weather.requests.get", return_value=_Resp(payload))
+    f = fetch_forecast(59.3, 18.1)
+    assert f.temp_min_c == -3.2
 
 
 def test_fetch_forecast_handles_nulls(mocker):
@@ -80,9 +91,9 @@ def test_fetch_forecast_empty_hourly(mocker):
 def test_forecast_has_rain_snow_flags():
     from rain_hue.weather import Forecast
 
-    rain = Forecast(1.0, 0.0, 50.0, 20.0)
-    snow = Forecast(1.0, 0.5, 50.0, -2.0)
-    dry = Forecast(0.0, 0.0, 0.0, 20.0)
+    rain = Forecast(1.0, 0.0, 50.0, 20.0, 10.0)
+    snow = Forecast(1.0, 0.5, 50.0, -2.0, -5.0)
+    dry = Forecast(0.0, 0.0, 0.0, 20.0, 10.0)
     assert rain.has_rain and not rain.has_snow
     assert snow.has_snow and not snow.has_rain
     assert not dry.has_rain and not dry.has_snow

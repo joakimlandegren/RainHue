@@ -31,7 +31,7 @@ def _config():
 def test_run_once_end_to_end(mocker):
     mocker.patch(
         "rain_hue.core.fetch_forecast",
-        return_value=Forecast(2.0, 0.0, 80.0, 18.0),
+        return_value=Forecast(2.0, 0.0, 80.0, 18.0, 10.0),
     )
     hue = _FakeHue()
     result = run_once(_config(), hue_client=hue)
@@ -46,7 +46,7 @@ def test_run_once_writes_state_file(mocker, tmp_path, monkeypatch):
     monkeypatch.setenv("RAINHUE_STATE_FILE", state_file)
     mocker.patch(
         "rain_hue.core.fetch_forecast",
-        return_value=Forecast(2.0, 0.0, 80.0, 18.0),
+        return_value=Forecast(2.0, 0.0, 80.0, 18.0, 10.0),
     )
     run_once(_config(), hue_client=_FakeHue())
 
@@ -61,7 +61,7 @@ def test_run_once_writes_state_file(mocker, tmp_path, monkeypatch):
 
 
 def test_run_once_lamp_override(mocker):
-    mocker.patch("rain_hue.core.fetch_forecast", return_value=Forecast(0.0, 0.0, 0.0, 15.0))
+    mocker.patch("rain_hue.core.fetch_forecast", return_value=Forecast(0.0, 0.0, 0.0, 15.0, 5.0))
     hue = _FakeHue()
     with pytest.raises(RuntimeError, match="not found"):
         run_once(_config(), lamp="Nope", hue_client=hue)
@@ -74,7 +74,7 @@ def test_cli_morning(mocker, capsys):
     result.return_value = RunResult(
         lamp="Desk Lamp",
         decision=ColorDecision((0.457, 0.410), 60.0, "no significant weather"),
-        forecast=Forecast(0.0, 0.0, 0.0, 15.0),
+        forecast=Forecast(0.0, 0.0, 0.0, 15.0, 5.0),
     )
     code = main(["morning"])
     assert code == 0
@@ -88,7 +88,7 @@ def test_cli_morning_lamp_override(mocker):
     run.return_value = RunResult(
         lamp="Kitchen",
         decision=ColorDecision((0.457, 0.410), 60.0, "no significant weather"),
-        forecast=Forecast(0.0, 0.0, 0.0, 15.0),
+        forecast=Forecast(0.0, 0.0, 0.0, 15.0, 5.0),
     )
     main(["morning", "--lamp", "Kitchen"])
     assert run.call_args.kwargs["lamp"] == "Kitchen"

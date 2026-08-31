@@ -124,7 +124,7 @@ class TestMorning:
     def test_morning_runs_logic_and_records(self, client, hue, mocker):
         mocker.patch(
             "rain_hue.core.fetch_forecast",
-            return_value=Forecast(2.0, 0.0, 80.0, 18.0),
+            return_value=Forecast(2.0, 0.0, 80.0, 18.0, 10.0),
         )
         resp = client.post("/api/morning")
         assert resp.status_code == 200
