@@ -47,6 +47,8 @@ class Thresholds:
     # Daily max temperature (°C) heat overrides.
     temp_orange_c: float = _float("TEMP_ORANGE_C", 25.0)  # > this and <= red -> orange
     temp_red_c: float = _float("TEMP_RED_C", 30.0)  # > this -> red
+    # Daily min temperature (°C) strictly below this -> freezing cold-white.
+    temp_freezing_c: float = _float("TEMP_FREEZING_C", 0.0)
 
 
 @dataclass(frozen=True)

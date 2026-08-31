@@ -17,12 +17,13 @@ from rain_hue.weather import Forecast
 T = Thresholds()  # defaults: rain 0.1/5.0mm, snow 0.1/2.0cm, orange >25, red >30
 
 
-def f(precip=0.0, snow=0.0, temp=15.0, prob=0.0) -> Forecast:
+def f(precip=0.0, snow=0.0, temp=15.0, temp_min=15.0, prob=0.0) -> Forecast:
     return Forecast(
         total_precip_mm=precip,
         total_snowfall_cm=snow,
         max_precip_probability=prob,
         temp_max_c=temp,
+        temp_min_c=temp_min,
     )
 
 
@@ -114,6 +115,48 @@ class TestPriority:
         d = decide_color(f(temp=10.0), T)
         assert d.xy == _NEUTRAL_WARM_WHITE
         assert "no significant weather" in d.reason
+
+
+class TestFreezing:
+    def test_subzero_min_no_precip_is_cold_white(self):
+        d = decide_color(f(temp=-5.0, temp_min=-3.2), T)
+        assert d.xy == _COLD_WHITE
+        assert d.brightness == 60.0
+        assert "freezing" in d.reason
+        assert "-3.2" in d.reason
+
+    def test_exactly_zero_min_is_not_freezing(self):
+        # Strictly below 0 -> exactly 0.0 falls through to neutral
+        d = decide_color(f(temp=5.0, temp_min=0.0), T)
+        assert d.xy == _NEUTRAL_WARM_WHITE
+
+    def test_rain_beats_freezing(self):
+        d = decide_color(f(precip=1.0, temp=-5.0, temp_min=-5.0), T)
+        assert d.xy == _LIGHT_BLUE
+
+    def test_snow_beats_freezing(self):
+        d = decide_color(f(snow=1.0, temp=-5.0, temp_min=-5.0), T)
+        assert d.xy == _COLD_WHITE
+        assert "snow" in d.reason
+
+    def test_freezing_beats_heat(self):
+        # Explicit order: freezing is checked before the heat bands.
+        d = decide_color(f(temp=26.0, temp_min=-1.0), T)
+        assert d.xy == _COLD_WHITE
+        assert "freezing" in d.reason
+
+    def test_custom_freezing_threshold(self):
+        t = Thresholds(temp_freezing_c=-10.0)
+        assert decide_color(f(temp=-5.0, temp_min=-5.0), t).xy == _NEUTRAL_WARM_WHITE
+        assert decide_color(f(temp=-11.0, temp_min=-11.0), t).xy == _COLD_WHITE
+
+    def test_manual_mode_freezing(self):
+        from rain_hue.colors import MODES
+
+        m = MODES["freezing"]
+        assert m.xy == _COLD_WHITE
+        assert m.brightness == 60.0
+        assert m.reason == "manual mode: freezing"
 
 
 class TestCustomThresholds:

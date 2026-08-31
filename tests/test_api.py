@@ -19,7 +19,7 @@ def _result():
     return RunResult(
         lamp="Desk Lamp",
         decision=ColorDecision((0.169, 0.321), 70.0, "rain (2.0mm)"),
-        forecast=Forecast(2.0, 0.0, 80.0, 18.0),
+        forecast=Forecast(2.0, 0.0, 80.0, 18.0, 10.0),
     )
 
 
@@ -49,7 +49,7 @@ def test_set_color_failure_is_502(client, mocker):
 def test_weather_ok(client, mocker):
     mocker.patch(
         "rain_hue.api.fetch_forecast",
-        return_value=Forecast(1.5, 0.0, 60.0, 21.0),
+        return_value=Forecast(1.5, 0.0, 60.0, 21.0, 12.0),
     )
     resp = client.get("/weather")
     assert resp.status_code == 200
