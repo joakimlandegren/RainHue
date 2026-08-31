@@ -29,8 +29,8 @@ class ColorDecision:
 
 # CIE xy presets.
 _LIGHT_BLUE = (0.169, 0.321)
-_DEEP_BLUE = (0.136, 0.040)
-_COLD_WHITE = (0.240, 0.240)  # cold white (snow / freezing)
+_DEEP_BLUE = (0.100, 0.100)  # dark blue
+_COLD_WHITE = (0.300, 0.600)  # green (snow / freezing)
 _NEUTRAL_WARM_WHITE = (0.457, 0.410)
 _ORANGE = (0.600, 0.380)
 _RED = (0.675, 0.322)
@@ -44,7 +44,7 @@ MODES: dict[str, "ColorDecision"] = {}
 def _register_modes() -> None:
     MODES.update(
         {
-            "rain": ColorDecision(_LIGHT_BLUE, 70.0, "manual mode: rain"),
+            "rain": ColorDecision(_DEEP_BLUE, 70.0, "manual mode: rain"),
             "snow": ColorDecision(_COLD_WHITE, 65.0, "manual mode: snow"),
             "freezing": ColorDecision(_COLD_WHITE, 60.0, "manual mode: freezing"),
             "heat": ColorDecision(_ORANGE, 90.0, "manual mode: heat"),
@@ -66,7 +66,7 @@ def decide_color(forecast: Forecast, thresholds: Thresholds) -> ColorDecision:
     if forecast.total_precip_mm >= thresholds.rain_min_mm:
         if forecast.total_precip_mm >= thresholds.rain_heavy_mm:
             return ColorDecision(_DEEP_BLUE, 100.0, f"heavy rain ({forecast.total_precip_mm:.1f}mm)")
-        return ColorDecision(_LIGHT_BLUE, 70.0, f"rain ({forecast.total_precip_mm:.1f}mm)")
+        return ColorDecision(_DEEP_BLUE, 70.0, f"rain ({forecast.total_precip_mm:.1f}mm)")
 
     # 2. Freezing cold (only reached with no precipitation). Ordered before
     #    the heat bands; sub-zero min and heat can't really co-occur.
