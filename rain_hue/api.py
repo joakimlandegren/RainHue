@@ -231,11 +231,12 @@ const xyToRgb = (x, y, bri = 1.0) => {
 const MODE_STYLE = {
   rain:    'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200',
   snow:    'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200',
+  freezing:'bg-cyan-50 text-cyan-800 border-cyan-200 hover:bg-cyan-100',
   heat:    'bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200',
   extreme: 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200',
   neutral: 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100',
 };
-const MODE_LABEL = { rain: '🌧 Rain', snow: '❄ Snow', heat: '🌤 Heat', extreme: '🔥 Extreme', neutral: '💡 Neutral' };
+const MODE_LABEL = { rain: '🌧 Rain', snow: '❄ Snow', freezing: '🥶 Freezing', heat: '🌤 Heat', extreme: '🔥 Extreme', neutral: '💡 Neutral' };
 
 async function fetchJson(url, options = {}) {
   // Robust fetch: never let a non-JSON body (e.g. an HTML 500 page) surface
