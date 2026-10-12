@@ -8,6 +8,9 @@ back to .env (the CLI is stateless; Hue refresh tokens rotate).
 
 import base64
 import logging
+import time
+from ipaddress import ip_address
+from urllib.parse import urlsplit
 from dataclasses import dataclass
 
 import requests
@@ -36,6 +39,16 @@ class HueClient:
         self._cfg = config
         self._timeout = timeout
         self._tokens = _Tokens(config.access_token, config.refresh_token)
+        if config.local_bridge:
+            bridge = urlsplit(config.local_bridge)
+            try:
+                address = ip_address(bridge.hostname or "")
+            except ValueError:
+                raise HueError("Local bridge must be an HTTPS private LAN IP address.") from None
+            if (bridge.scheme != "https" or not address.is_private or address.is_loopback
+                    or bridge.username or bridge.password or bridge.path not in ("", "/")
+                    or bridge.query or bridge.fragment):
+                raise HueError("Local bridge must be an HTTPS private LAN IP address.")
 
     # ── OAuth ────────────────────────────────────────────────────────────────
 
@@ -89,25 +102,36 @@ class HueClient:
         """
         if not self._cfg.username:
             raise HueError("HUE_USERNAME (bridge whitelist user) is not configured.")
-        url = f"{self._cfg.base_url}/route{path}"
+        local = bool(self._cfg.local_bridge)
+        url = (f"{self._cfg.local_bridge.rstrip('/')}{path}" if local
+               else f"{self._cfg.base_url}/route{path}")
         headers = {
-            "Authorization": f"Bearer {self._tokens.access}",
             "hue-application-key": self._cfg.username,
             "Content-Type": "application/json",
         }
+        if not local:
+            headers["Authorization"] = f"Bearer {self._tokens.access}"
         try:
-            resp = requests.request(method, url, headers=headers, json=body, timeout=self._timeout)
+            # Self-signed TLS is accepted only for explicit private-LAN bridge mode.
+            resp = requests.request(method, url, headers=headers, json=body,
+                                    timeout=self._timeout, verify=not local, allow_redirects=not local)
         except requests.RequestException as exc:
             raise HueError(f"Hue API request failed: {exc}") from exc
 
-        if resp.status_code == 401 and retry:
+        if resp.status_code == 401 and retry and not local:
             logger.info("Hue API returned 401 — refreshing OAuth token and retrying once")
             self._refresh_tokens()
             return self._clip(method, path, body, retry=False)
 
-        if resp.status_code >= 400:
+        if resp.status_code >= 300:
             raise HueError(f"Hue API {method} {path} -> {resp.status_code}: {resp.text[:200]}")
-        return resp.json() if resp.text else {}
+        try:
+            data = resp.json() if resp.text else {}
+        except ValueError as exc:
+            raise HueError("Hue API returned invalid JSON") from exc
+        if isinstance(data, dict) and data.get("errors"):
+            raise HueError(f"Hue API rejected request: {data['errors']}")
+        return data
 
     # ── Public operations ────────────────────────────────────────────────────
 
@@ -126,9 +150,12 @@ class HueClient:
     def find_light_id(self, name: str) -> str:
         """Resolve a light name (case-insensitive) to its CLIP v2 id."""
         lights = self.list_lights()
-        for light in lights:
-            if light.get("metadata", {}).get("name", "").lower() == name.lower():
-                return light["id"]
+        matches = [light for light in lights
+                   if light.get("metadata", {}).get("name", "").lower() == name.lower()]
+        if len(matches) > 1:
+            raise HueError(f"Ambiguous lamp '{name}': {len(matches)} matching lights; no change made.")
+        if matches:
+            return matches[0]["id"]
         available = [l.get("metadata", {}).get("name", "?") for l in lights]
         raise HueError(f"Lamp '{name}' not found. Available: {', '.join(available) or '(none)'}")
 
@@ -143,6 +170,22 @@ class HueClient:
                 "dimming": {"brightness": max(1.0, min(100.0, brightness))},
             },
         )
+        if self._cfg.local_bridge:
+            # Bound polling to bridge transition latency; tolerate xy/brightness quantization.
+            target_brightness = max(1.0, min(100.0, brightness))
+            for attempt in range(5):
+                status = self.get_light_status(light_id)
+                actual_xy = status["xy"]
+                actual_brightness = status["brightness"]
+                if (status["on"] is True and actual_xy is not None
+                        and all(isinstance(value, (int, float)) for value in actual_xy)
+                        and isinstance(actual_brightness, (int, float))
+                        and all(abs(actual_xy[i] - xy[i]) <= 0.005 for i in (0, 1))
+                        and abs(actual_brightness - target_brightness) <= 1.0):
+                    break
+                if attempt == 4:
+                    raise HueError(f"Hue bridge readback did not match requested state for {light_id}")
+                time.sleep(0.2)
         logger.info("Set light %s to xy=%s brightness=%.0f", light_id, xy, brightness)
 
     def get_light_status(self, light_id: str) -> dict:

@@ -30,6 +30,7 @@ class HueConfig:
     username: str = os.environ.get("HUE_USERNAME", "")  # bridge/whitelist user (application key)
     base_url: str = os.environ.get("HUE_URI", "https://api.meethue.com")
     default_lamp: str = os.environ.get("HUE_LAMP", "Desk Lamp")
+    local_bridge: str = ""  # Explicit opt-in; cloud transport remains the default.
 
 
 @dataclass(frozen=True)

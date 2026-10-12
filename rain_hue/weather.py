@@ -6,6 +6,7 @@ dataclass consumed by the color-decision logic.
 """
 
 import logging
+import time
 from dataclasses import dataclass
 
 import requests
@@ -43,7 +44,8 @@ def fetch_forecast(
 ) -> Forecast:
     """Fetch and condense the forecast from Open-Meteo.
 
-    Raises RuntimeError on HTTP failure or malformed response.
+    Makes at most three attempts for transient failures, waiting 2s then 5s.
+    Raises RuntimeError on permanent failure, exhausted retries or malformed response.
     """
     params = {
         "latitude": latitude,
@@ -54,13 +56,26 @@ def fetch_forecast(
         "forecast_days": 1,
     }
 
-    try:
-        response = requests.get(_API_URL, params=params, timeout=timeout)
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        logger.error("Failed to fetch weather data: %s", exc)
-        raise RuntimeError(f"Failed to fetch weather data from Open-Meteo: {exc}") from exc
+    response = None
+    for attempt in range(3):
+        try:
+            response = requests.get(_API_URL, params=params, timeout=timeout)
+            response.raise_for_status()
+            break
+        except requests.RequestException as exc:
+            retryable = isinstance(exc, (requests.Timeout, requests.ConnectionError)) or (
+                isinstance(exc, requests.HTTPError)
+                and exc.response is not None
+                and exc.response.status_code in (429, 500, 502, 503, 504)
+            )
+            if not retryable or attempt == 2:
+                logger.error("Failed to fetch weather data: %s", exc)
+                raise RuntimeError(f"Failed to fetch weather data from Open-Meteo: {exc}") from exc
+            delay = (2, 5)[attempt]
+            logger.warning("Weather attempt %d/3 failed: %s; retrying in %ds", attempt + 1, exc, delay)
+            time.sleep(delay)
 
+    assert response is not None
     try:
         data = response.json()
         hourly = data["hourly"]

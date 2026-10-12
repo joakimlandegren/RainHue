@@ -79,6 +79,21 @@ python -m rain_hue morning
 python -m rain_hue morning --lamp "Kitchen"   # override lamp
 ```
 
+Local LAN morning run (explicit opt-in; cloud remains the default):
+```
+python -m rain_hue morning --local-bridge https://192.168.68.90 --lamp Barnhall --script
+```
+This uses the existing `HUE_USERNAME` application key directly with CLIP v2,
+without OAuth or token refresh. Only explicit HTTPS private-LAN IP bridge mode
+accepts a self-signed certificate; use it only on a trusted LAN. Local requests
+do not follow redirects. Lamp names must match uniquely. Success requires live
+on/xy/brightness readback (xy tolerance 0.005, brightness tolerance 1 percentage
+point, up to five reads over 0.8 seconds plus request time). Errors exit nonzero.
+The single-line message comes from this run's result, never the cached state file.
+`ops/rainhue-morning.sh` is the replacement for the existing external
+`~/.hermes/scripts/rainhue-morning.sh`; it runs from `~/projects/RainHue` and leaves
+scheduling unchanged. Installing the replacement is a separate deployment step.
+
 Cron example (06:00 daily, Europe/Stockholm host time):
 ```
 0 6 * * * cd /path/to/RainHue && /path/to/.venv/bin/python -m rain_hue morning >> logs/cron.log 2>&1

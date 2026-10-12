@@ -5,6 +5,7 @@ Designed for cron/systemd: one command = one run, then exit.
 
 import argparse
 import logging
+from dataclasses import replace
 import sys
 
 from .config import load
@@ -24,16 +25,24 @@ def main(argv: list[str] | None = None) -> int:
 
     morning = sub.add_parser("morning", help="Run one weather->color cycle (cron entrypoint)")
     morning.add_argument("--lamp", help="Override the configured default lamp name")
+    morning.add_argument("--local-bridge", help="Explicit HTTPS private-LAN bridge URL (no OAuth)")
+    morning.add_argument("--script", action="store_true", help="Single-line morning message")
 
     args = parser.parse_args(argv)
     config = load()
 
     if args.command == "morning":
+        if args.local_bridge:
+            config = replace(config, hue=replace(config.hue, local_bridge=args.local_bridge))
         result = run_once(config, lamp=args.lamp)
-        print(
-            f"OK: '{result.lamp}' -> {result.decision.reason}; "
-            f"xy={result.decision.xy} brightness={result.decision.brightness:.0f}"
-        )
+        if args.script:
+            print(f"🌅 RainHue morning: {result.lamp}: {result.decision.reason}; "
+                  f"xy={result.decision.xy} brightness={result.decision.brightness:.0f}")
+        else:
+            print(
+                f"OK: '{result.lamp}' -> {result.decision.reason}; "
+                f"xy={result.decision.xy} brightness={result.decision.brightness:.0f}"
+            )
         return 0
 
     return 2  # unreachable — argparse enforces a valid command
